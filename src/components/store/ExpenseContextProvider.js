@@ -1,4 +1,4 @@
-import React, { useReducer } from 'react';
+import React, { useReducer, useEffect } from 'react';
 import ExpenseContext from './expense-contxt';
 
 const initialState = {
@@ -14,7 +14,7 @@ const reducer = (state, action) => {
   let expense = state.expense;
   switch (action.type) {
     case 'ADD':
-      const amount = action.expense.amount;
+      const amount = action.transaction.amount;
       const balance = state.balance + amount;
 
       if (amount > 0) {
@@ -23,7 +23,7 @@ const reducer = (state, action) => {
         expense -= amount;
       }
 
-      history.push(action.expense);
+      history.push(action.transaction);
       return {
         balance: balance,
         income: income,
@@ -32,7 +32,9 @@ const reducer = (state, action) => {
       };
 
     case 'REMOVE':
-      const toRemoveTrans = history.find((trans) => (trans.id = action.id));
+      const toRemoveTrans = state.history
+        .concat()
+        .find((trans) => trans.id === action.id);
       const newBalance = state.balance - toRemoveTrans.amount;
 
       if (toRemoveTrans.amount > 0) {
@@ -40,29 +42,77 @@ const reducer = (state, action) => {
       } else {
         expense += toRemoveTrans.amount;
       }
-      history = history.filter((trans) => trans.id !== action.id);
+      const newHistory = state.history
+        .concat()
+        .filter((trans) => trans.id !== action.id);
       return {
         balance: newBalance,
         income: income,
         expense: expense,
-        history: history,
+        history: newHistory,
+      };
+    case 'FETCH':
+      income = action.history.reduce((accumulator, currTrans) => {
+        return accumulator + (currTrans.amount > 0 ? currTrans.amount : 0);
+      }, 0);
+      expense = action.history.reduce((accumulator, currTrans) => {
+        return accumulator - (currTrans.amount < 0 ? currTrans.amount : 0);
+      }, 0);
+      return {
+        history: action.history,
+        balance: income - expense,
+        expense,
+        income,
       };
     default:
-      return initialState;
+      return state;
   }
 };
+
+const server =
+  'https://expense-9dbb2-default-rtdb.europe-west1.firebasedatabase.app/';
 
 const ExpenseContextProvider = (props) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const addTransactionHandler = (expense) => {
-    dispatch({ type: 'ADD', expense });
+  const addTransactionHandler = async (transaction) => {
+    const response = await fetch(server + '/history.json', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(transaction),
+    });
+    const responseData = await response.json();
+    transaction.id = responseData.name;
+
+    dispatch({ type: 'ADD', transaction });
   };
 
-  const removeTransactionHandler = (id) => {
-    console.log('removing' + id);
+  const removeTransactionHandler = async (id) => {
+    fetch(server + '/history/' + id + '.json', {
+      method: 'DELETE',
+    });
+    dispatch({ type: 'REMOVE', id });
   };
 
+  useEffect(() => {
+    fetchFromServer();
+  }, []);
+
+  const fetchFromServer = async () => {
+    const response = await fetch(server + '/history.json');
+    const responseData = await response.json();
+    const history = [];
+    for (const key in responseData) {
+      history.push({
+        id: key,
+        text: responseData[key].text,
+        amount: responseData[key].amount,
+      });
+    }
+    dispatch({ type: 'FETCH', history: history });
+  };
   return (
     <ExpenseContext.Provider
       value={{

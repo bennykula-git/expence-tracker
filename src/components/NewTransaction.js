@@ -4,13 +4,16 @@ import ExpenseContext from './store/expense-contxt';
 const NewTransaction = () => {
   const [text, setText] = useState('');
   const [amount, setAmount] = useState(0);
+  const [openForm, setOpenForm] = useState(false);
 
   const textRef = useRef();
   const amountRef = useRef();
 
   useEffect(() => {
-    textRef.current.focus();
-  }, []);
+    if (openForm) {
+      textRef.current.focus();
+    }
+  }, [openForm]);
 
   const expCtx = useContext(ExpenseContext);
 
@@ -34,11 +37,20 @@ const NewTransaction = () => {
       return;
     }
 
-    expCtx.addTransaction({ id: Math.random(), text, amount: numAmount });
+    expCtx.addTransaction({ text, amount: numAmount });
     setText('');
     setAmount(0);
+    setOpenForm(false);
     textRef.current.focus();
   };
+
+  if (!openForm) {
+    return (
+      <button type='button' className='btn' onClick={() => setOpenForm(true)}>
+        Add transaction
+      </button>
+    );
+  }
 
   return (
     <>

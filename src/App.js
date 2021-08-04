@@ -13,8 +13,8 @@ function App() {
       <div className='container'>
         <Balance></Balance>
         <IncExp></IncExp>
-        <TransactionsList></TransactionsList>
         <NewTransaction></NewTransaction>
+        <TransactionsList></TransactionsList>
       </div>
     </ExpenseContextProvider>
   );
